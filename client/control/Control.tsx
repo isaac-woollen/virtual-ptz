@@ -32,8 +32,10 @@ export default function Control() {
 
   return (
     <div>
-      <button onClick={sendMessage}>Send OSC Message</button>
-      <p>{lastKey}</p>
+      <button onClick={sendMessage}>Send Message</button>
+      <p>
+        <b>Last Action:</b> {lastKey}
+      </p>
     </div>
   );
 }
