@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import React from "react";
 import "./App.css";
 
 export default function Control() {
@@ -12,7 +11,7 @@ export default function Control() {
 
   const [lastKey, setLastKey] = useState("");
 
-  var detectKeyDown = (e) => {
+  const detectKeyDown = (e: any) => {
     console.log(e.key);
     socket.emit("key_pressed", e.key);
     setLastKey(e.key);
@@ -30,12 +29,5 @@ export default function Control() {
     console.log(data);
   });
 
-  return (
-    <div>
-      <button onClick={sendMessage}>Send Message</button>
-      <p>
-        <b>Last Action:</b> {lastKey}
-      </p>
-    </div>
-  );
+  return <div></div>;
 }
