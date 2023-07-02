@@ -21,22 +21,33 @@ class VPTZ:
         self.alpha = int((self.width - self.capture_width) / 2)
         self.mu = int((self.height - self.capture_height) / 2)
 
+        self.pocX = self.alpha
+        self.pocY = self.mu
+
         print(self.alpha, self.mu)
 
         self.server = Flask(__name__)
         self.socketio = SocketIO(self.server, cors_allowed_origins="*")
 
-        @self.socketio.on("message")
+        @self.socketio.event
+        def connect():
+            print("connect")
+
+        @self.socketio.on("info")
         def handle_message(data):
             print(data)
-            self.socketio.emit("response", str(self.width) + str(self.height))
+            self.socketio.emit("info", "hello")
 
         @self.socketio.on("move")
         def handle_move(data):
-            if data == "left" and self.alpha > 0:
-                self.alpha -= 5
-            if data == "right" and self.alpha > 0:
-                self.alpha += 5
+            if data == "left" and self.pocX > 0:
+                self.pocX -= 5
+            if data == "right" and self.pocX < self.alpha * 2 - 1:
+                self.pocX += 5
+            if data == "up" and self.pocY > 0:
+                self.pocY -= 5
+            if data == "down" and self.pocY < self.mu * 2 - 1:
+                self.pocY += 5
 
     def start_camera(self):
         Thread(target=self.get_video, args=()).start()
@@ -53,8 +64,8 @@ class VPTZ:
             else:
                 (self.grabbed, self.frame) = self.stream.read()
                 self.frame = self.frame[
-                    self.mu : self.mu + self.capture_height,
-                    self.alpha : self.alpha + self.capture_width,
+                    self.pocY : self.pocY + self.capture_height,
+                    self.pocX : self.pocX + self.capture_width,
                 ]
 
 

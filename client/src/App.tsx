@@ -2,14 +2,22 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 
-export default function Control() {
-  const socket = io("127.0.0.1:5000");
+const keyCodeActions: any = {
+  37: "left",
+  38: "up",
+  39: "right",
+  40: "down",
+};
 
+const socket = io("127.0.0.1:5000");
+
+export default function Control() {
   useEffect(() => {
     document.addEventListener("keydown", detectKeyDown, true);
   }, []);
 
   const [lastKey, setLastKey] = useState("");
+  const [info, setInfo] = useState("");
 
   const detectKeyDown = (e: any) => {
     console.log(e.key);
@@ -19,16 +27,15 @@ export default function Control() {
   };
 
   function sendAction(keyCode: number) {
-    let action = "";
-    if (keyCode == 37) action = "left";
-    if (keyCode == 39) action = "right";
-    if (action != "") socket.emit("move", action);
+    const action = keyCodeActions[keyCode];
+    if (action != undefined) socket.emit("action", action);
   }
   function sendMessage() {
-    socket.emit("message", "hello from client");
+    socket.emit("info", socket.id);
   }
 
-  socket.on("message", (data) => {
+  socket.on("info", (data) => {
+    setInfo(data);
     console.log(data);
   });
 
@@ -39,6 +46,7 @@ export default function Control() {
   return (
     <div>
       <button onClick={sendMessage}>Send Message</button>
+      <div>{info}</div>
     </div>
   );
 }
