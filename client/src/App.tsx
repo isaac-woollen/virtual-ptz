@@ -15,8 +15,15 @@ export default function Control() {
     console.log(e.key);
     socket.emit("key_pressed", e.key);
     setLastKey(e.key);
+    sendAction(e.keyCode);
   };
 
+  function sendAction(keyCode: number) {
+    let action = "";
+    if (keyCode == 37) action = "left";
+    if (keyCode == 39) action = "right";
+    if (action != "") socket.emit("move", action);
+  }
   function sendMessage() {
     socket.emit("message", "hello from client");
   }
@@ -29,5 +36,9 @@ export default function Control() {
     console.log(data);
   });
 
-  return <div></div>;
+  return (
+    <div>
+      <button onClick={sendMessage}>Send Message</button>
+    </div>
+  );
 }
