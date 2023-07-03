@@ -3,6 +3,10 @@ from threading import Thread
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO
 import json
+import numpy as np
+import pyvirtualcam
+
+directions = ["left", "right", "up", "down"]
 
 
 class VPTZ:
@@ -24,30 +28,32 @@ class VPTZ:
         self.pocX = self.alpha
         self.pocY = self.mu
 
-        print(self.alpha, self.mu)
+        self.speed_array = [0, 0]  # Horizontal, vertical
+
+        self.timing_index = -1
 
         self.server = Flask(__name__)
         self.socketio = SocketIO(self.server, cors_allowed_origins="*")
 
         @self.socketio.event
         def connect():
-            print("connect")
+            pass
 
         @self.socketio.on("info")
         def handle_message(data):
             print(data)
-            self.socketio.emit("info", "hello")
+            self.socketio.emit("info", "hello", to=data)
 
-        @self.socketio.on("move")
+        @self.socketio.on("action")
         def handle_move(data):
-            if data == "left" and self.pocX > 0:
-                self.pocX -= 5
-            if data == "right" and self.pocX < self.alpha * 2 - 1:
-                self.pocX += 5
-            if data == "up" and self.pocY > 0:
-                self.pocY -= 5
-            if data == "down" and self.pocY < self.mu * 2 - 1:
-                self.pocY += 5
+            if data == "left":
+                self.speed_array[0] -= 4
+            if data == "right":
+                self.speed_array[0] += 4
+            if data == "up":
+                self.speed_array[1] -= 4
+            if data == "down":
+                self.speed_array[1] += 4
 
     def start_camera(self):
         Thread(target=self.get_video, args=()).start()
@@ -68,6 +74,26 @@ class VPTZ:
                     self.pocX : self.pocX + self.capture_width,
                 ]
 
+                if self.speed_array[0] + self.pocX < 0:
+                    self.pocX = 0
+                elif self.speed_array[0] + self.pocX > self.alpha * 2 - 1:
+                    self.pocX = self.alpha * 2 - 1
+                else:
+                    self.pocX += self.speed_array[0]
+
+                if self.speed_array[1] + self.pocY < 0:
+                    self.pocY = 0
+                elif self.speed_array[1] + self.pocY > self.mu * 2 - 1:
+                    self.pocY = self.mu * 2 - 1
+                else:
+                    self.pocY += self.speed_array[1]
+
+                for i in range(len(self.speed_array)):
+                    if self.speed_array[i] > 0:
+                        self.speed_array[i] -= 1
+                    elif self.speed_array[i] < 0:
+                        self.speed_array[i] += 1
+
 
 if __name__ == "__main__":
     vptz_obj = VPTZ()
@@ -76,10 +102,22 @@ if __name__ == "__main__":
     server_thread.daemon = True
     server_thread.start()
 
-    while True:
-        if (cv2.waitKey(1) == ord("q")) or vptz_obj.stopped:
-            vptz_obj.stopped = True
-            break
+    fmt = pyvirtualcam.PixelFormat.BGR
 
-        frame = vptz_obj.frame
-        cv2.imshow("frame", frame)
+    with pyvirtualcam.Camera(
+        width=vptz_obj.capture_width, height=vptz_obj.capture_height, fps=30, fmt=fmt
+    ) as cam:
+        while True:
+            frame = vptz_obj.frame
+
+            frame = cv2.resize(
+                frame,
+                (vptz_obj.capture_width, vptz_obj.capture_height),
+                interpolation=cv2.BORDER_DEFAULT,
+            )
+            # cv2.imshow('my webcam', frame)
+            cam.send(frame)
+            cam.sleep_until_next_frame()
+            if cv2.waitKey(1) == 27:
+                break  # esc to quit
+        cv2.destroyAllWindows()

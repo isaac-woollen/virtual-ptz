@@ -19,17 +19,25 @@ export default function Control() {
   const [lastKey, setLastKey] = useState("");
   const [info, setInfo] = useState("");
 
+  let currentKey = "";
+
   const detectKeyDown = (e: any) => {
     console.log(e.key);
     socket.emit("key_pressed", e.key);
     setLastKey(e.key);
-    sendAction(e.keyCode);
+    sendKeyAction(e.keyCode);
   };
 
-  function sendAction(keyCode: number) {
+  function sendKeyAction(keyCode: number) {
     const action = keyCodeActions[keyCode];
+    if (currentKey != action) {
+      currentKey = action;
+      return;
+    }
     if (action != undefined) socket.emit("action", action);
+    console.log(currentKey);
   }
+
   function sendMessage() {
     socket.emit("info", socket.id);
   }
@@ -45,7 +53,6 @@ export default function Control() {
 
   return (
     <div>
-      <button onClick={sendMessage}>Send Message</button>
       <div>{info}</div>
     </div>
   );
