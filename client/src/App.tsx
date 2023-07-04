@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import "./App.css";
+import Navbar from "./Navbar";
+import Status from "./Status";
 
 const keyCodeActions: any = {
   37: "left",
@@ -12,18 +13,25 @@ const keyCodeActions: any = {
 const socket = io("127.0.0.1:5000");
 
 export default function Control() {
+  const [lastKey, setLastKey] = useState("");
+  const [xPOS, setXPOS] = useState(0.0);
+  const [yPOS, setYPOS] = useState(0.0);
+
   useEffect(() => {
     document.addEventListener("keydown", detectKeyDown, true);
   }, []);
 
-  const [lastKey, setLastKey] = useState("");
-  const [info, setInfo] = useState("");
+  const updateState = useCallback(async () => {
+    socket.emit("info", socket.id);
+  }, []);
+
+  useEffect(() => {
+    setInterval(updateState, 50);
+  }, [updateState]);
 
   let currentKey = "";
 
   const detectKeyDown = (e: any) => {
-    console.log(e.key);
-    socket.emit("key_pressed", e.key);
     setLastKey(e.key);
     sendKeyAction(e.keyCode);
   };
@@ -35,25 +43,23 @@ export default function Control() {
       return;
     }
     if (action != undefined) socket.emit("action", action);
-    console.log(currentKey);
   }
 
   function sendMessage() {
     socket.emit("info", socket.id);
   }
 
-  socket.on("info", (data) => {
-    setInfo(data);
-    console.log(data);
-  });
-
-  socket.on("response", (data) => {
-    console.log(data);
+  socket.on("info", (data: string) => {
+    const status = JSON.parse(data);
+    setXPOS(status["xPOS"]);
+    setYPOS(status["yPOS"]);
   });
 
   return (
-    <div>
-      <div>{info}</div>
+    <div className="dark:text-slate-200">
+      <Navbar />
+      <Status lastAction={lastKey} xPOS={xPOS} yPOS={yPOS} />
+      <button onClick={sendMessage}>Button</button>
     </div>
   );
 }

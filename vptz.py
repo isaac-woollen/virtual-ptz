@@ -18,6 +18,8 @@ class VPTZ:
         self.width = int(self.stream.get(3))
         self.height = int(self.stream.get(4))
 
+        self.state_changed = False
+
         self.capture_width = 640
         self.capture_height = 360
 
@@ -35,14 +37,15 @@ class VPTZ:
         self.server = Flask(__name__)
         self.socketio = SocketIO(self.server, cors_allowed_origins="*")
 
-        @self.socketio.event
-        def connect():
-            pass
-
         @self.socketio.on("info")
         def handle_message(data):
-            print(data)
-            self.socketio.emit("info", "hello", to=data)
+            status = {
+                "xPOS": "%.2f" % ((self.pocX - self.alpha) / self.alpha * 100),
+                "yPOS": "%.2f" % ((self.pocY - self.mu) / self.mu * -100),
+            }
+
+            status = json.dumps(status)
+            self.socketio.emit("info", status, to=data)
 
         @self.socketio.on("action")
         def handle_move(data):
@@ -76,23 +79,25 @@ class VPTZ:
 
                 if self.speed_array[0] + self.pocX < 0:
                     self.pocX = 0
-                elif self.speed_array[0] + self.pocX > self.alpha * 2 - 1:
-                    self.pocX = self.alpha * 2 - 1
+                elif self.speed_array[0] + self.pocX > self.alpha * 2:
+                    self.pocX = self.alpha * 2
                 else:
                     self.pocX += self.speed_array[0]
 
                 if self.speed_array[1] + self.pocY < 0:
                     self.pocY = 0
-                elif self.speed_array[1] + self.pocY > self.mu * 2 - 1:
-                    self.pocY = self.mu * 2 - 1
+                elif self.speed_array[1] + self.pocY > self.mu * 2:
+                    self.pocY = self.mu * 2
                 else:
                     self.pocY += self.speed_array[1]
 
                 for i in range(len(self.speed_array)):
                     if self.speed_array[i] > 0:
                         self.speed_array[i] -= 1
+                        self.state_changed = True
                     elif self.speed_array[i] < 0:
                         self.speed_array[i] += 1
+                        self.state_changed = True
 
 
 if __name__ == "__main__":
