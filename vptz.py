@@ -1,27 +1,59 @@
 import cv2
 from threading import Thread
-from flask import Flask, jsonify, request
+from flask import Flask
 from flask_socketio import SocketIO
 import json
-import numpy as np
 import pyvirtualcam
+from engineio.async_drivers import gevent
+import numpy
 
 directions = ["left", "right", "up", "down"]
 
+import socket
+
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(("192.255.255.255", 1))
+        IP = s.getsockname()[0]
+    except:
+        IP = "127.0.0.1"
+    finally:
+        s.close()
+    return IP
+
+def set_client_config(ip, port):
+    config_init = {
+        "vptz-ip" : ip,
+        "vptz-port": port
+    }
+
+    config = json.dumps(config_init, indent=4)
+
+    with open("client/server/config.json", "w") as outfile:
+        outfile.write(config)
+        outfile.close()
+    
 
 class VPTZ:
     def __init__(self, src=0, port=7777):
+
         self.stream = cv2.VideoCapture(src)
         (self.grabbed, self.frame) = self.stream.read()
         self.stopped = False
 
+        self.port = port
+        set_client_config(get_local_ip(), port)
+
         self.width = int(self.stream.get(3))
         self.height = int(self.stream.get(4))
 
-        self.state_changed = False
+        self.last_action = ""
 
-        self.capture_width = 640
-        self.capture_height = 360
+        self.capture_width = 1280
+        self.capture_height = 720
 
         # Helps us keep track on where to start grabbing pixels from capture array
         self.alpha = int((self.width - self.capture_width) / 2)
@@ -42,28 +74,49 @@ class VPTZ:
             status = {
                 "xPOS": "%.2f" % ((self.pocX - self.alpha) / self.alpha * 100),
                 "yPOS": "%.2f" % ((self.pocY - self.mu) / self.mu * -100),
+                "xSpeed": str(abs(self.speed_array[0])),
+                "ySpeed": str(abs(self.speed_array[1])),
             }
 
             status = json.dumps(status)
-            self.socketio.emit("info", status, to=data)
+            self.socketio.emit("info", status)
 
         @self.socketio.on("action")
         def handle_move(data):
+            self.last_action = data
+
             if data == "left":
-                self.speed_array[0] -= 4
+                if self.speed_array[0] - 4 < -20:
+                    self.speed_array[0] = -20
+                else:
+                    self.speed_array[0] -= 4
+
             if data == "right":
-                self.speed_array[0] += 4
+                if self.speed_array[0] + 4 > 20:
+                    self.speed_array[0] = 20
+                else:
+                    self.speed_array[0] += 4
+
             if data == "up":
-                self.speed_array[1] -= 4
+                if self.speed_array[1] - 4 < -20:
+                    self.speed_array[1] = -20
+                else:
+                    self.speed_array[1] -= 4
+
             if data == "down":
-                self.speed_array[1] += 4
+                if self.speed_array[1] + 4 > 20:
+                    self.speed_array[1] = 20
+                else:
+                    self.speed_array[1] += 4
+
+            self.socketio.emit("action", self.last_action)
 
     def start_camera(self):
         Thread(target=self.get_video, args=()).start()
         return self
 
     def start_server(self):
-        self.socketio.run(self.server)
+        self.socketio.run(self.server, port=self.port, host=get_local_ip())
         return self
 
     def get_video(self):
@@ -94,10 +147,8 @@ class VPTZ:
                 for i in range(len(self.speed_array)):
                     if self.speed_array[i] > 0:
                         self.speed_array[i] -= 1
-                        self.state_changed = True
                     elif self.speed_array[i] < 0:
                         self.speed_array[i] += 1
-                        self.state_changed = True
 
 
 if __name__ == "__main__":

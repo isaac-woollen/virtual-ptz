@@ -10,15 +10,53 @@ const keyCodeActions: any = {
   40: "down",
 };
 
-const socket = io("127.0.0.1:5000");
+const configURL = "http://" + self.location.host + "/config";
+
+//const socket = io("http://192.168.1.161:7777");
 
 export default function Control() {
-  const [lastKey, setLastKey] = useState("");
+  const [lastAction, setLastAction] = useState("");
   const [xPOS, setXPOS] = useState(0.0);
   const [yPOS, setYPOS] = useState(0.0);
+  const [isOnline, setIsOnline] = useState(false);
+  const [xSpeed, setXSpeed] = useState(0);
+  const [ySpeed, setYSpeed] = useState(0);
+  let socket: any;
+
+  function startSocket(url: string) {
+    const newSocket = io(url);
+
+    newSocket.on("connect", () => {
+      setIsOnline(true);
+    });
+
+    newSocket.on("disconnect", () => {
+      setIsOnline(false);
+    });
+
+    newSocket.on("info", (data: string) => {
+      const status = JSON.parse(data);
+      setXPOS(status["xPOS"]);
+      setYPOS(status["yPOS"]);
+      setXSpeed(status["xSpeed"]);
+      setYSpeed(status["ySpeed"]);
+    });
+
+    newSocket.on("action", (data: string) => {
+      setLastAction(data);
+    });
+
+    return newSocket;
+  }
 
   useEffect(() => {
     document.addEventListener("keydown", detectKeyDown, true);
+    fetch(configURL)
+      .then((result) => result.json())
+      .then((data) => {
+        const vptzURL = `http://${data["vptz-ip"]}:${data["vptz-port"]}`;
+        socket = startSocket(vptzURL);
+      });
   }, []);
 
   const updateState = useCallback(async () => {
@@ -32,7 +70,6 @@ export default function Control() {
   let currentKey = "";
 
   const detectKeyDown = (e: any) => {
-    setLastKey(e.key);
     sendKeyAction(e.keyCode);
   };
 
@@ -45,21 +82,16 @@ export default function Control() {
     if (action != undefined) socket.emit("action", action);
   }
 
-  function sendMessage() {
-    socket.emit("info", socket.id);
-  }
-
-  socket.on("info", (data: string) => {
-    const status = JSON.parse(data);
-    setXPOS(status["xPOS"]);
-    setYPOS(status["yPOS"]);
-  });
-
   return (
     <div className="dark:text-slate-200">
-      <Navbar />
-      <Status lastAction={lastKey} xPOS={xPOS} yPOS={yPOS} />
-      <button onClick={sendMessage}>Button</button>
+      <Navbar isOnline={isOnline} />
+      <Status
+        lastAction={lastAction}
+        xPOS={xPOS}
+        yPOS={yPOS}
+        xSpeed={xSpeed}
+        ySpeed={ySpeed}
+      />
     </div>
   );
 }
