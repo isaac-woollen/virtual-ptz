@@ -82,9 +82,14 @@ export default function Control() {
     if (action != undefined) socket.emit("action", action);
   }
 
+  function turnOff() {
+    socket.emit("turn-off", "");
+  }
+
   return (
     <div className="dark:text-slate-200">
-      <Navbar isOnline={isOnline} />
+      <button onClick={turnOff}>Button</button>
+      <Navbar isOnline={isOnline} offHandler={turnOff} />
       <Status
         lastAction={lastAction}
         xPOS={xPOS}

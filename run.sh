@@ -1,1 +1,1 @@
-python3 vptz.py & ./client/server/run-client.sh
+./run-camera.sh & ./client/server/run-client.sh

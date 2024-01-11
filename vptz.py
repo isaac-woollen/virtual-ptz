@@ -24,22 +24,19 @@ def get_local_ip():
         s.close()
     return IP
 
+
 def set_client_config(ip, port):
-    config_init = {
-        "vptz-ip" : ip,
-        "vptz-port": port
-    }
+    config_init = {"vptz-ip": ip, "vptz-port": port}
 
     config = json.dumps(config_init, indent=4)
 
     with open("client/server/config.json", "w") as outfile:
         outfile.write(config)
         outfile.close()
-    
+
 
 class VPTZ:
     def __init__(self, src=0, port=7777):
-
         self.stream = cv2.VideoCapture(src)
         (self.grabbed, self.frame) = self.stream.read()
         self.stopped = False
@@ -49,11 +46,12 @@ class VPTZ:
 
         self.width = int(self.stream.get(3))
         self.height = int(self.stream.get(4))
+        print(self.width, self.height)
 
         self.last_action = ""
 
-        self.capture_width = 1280
-        self.capture_height = 720
+        self.capture_width = 600
+        self.capture_height = 600
 
         # Helps us keep track on where to start grabbing pixels from capture array
         self.alpha = int((self.width - self.capture_width) / 2)
@@ -110,6 +108,11 @@ class VPTZ:
                     self.speed_array[1] += 4
 
             self.socketio.emit("action", self.last_action)
+
+        @self.socketio.on("turn-off")
+        def handle_turn_off(data):
+            print("exit")
+            exit(0)
 
     def start_camera(self):
         Thread(target=self.get_video, args=()).start()

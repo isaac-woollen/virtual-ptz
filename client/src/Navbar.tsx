@@ -8,6 +8,14 @@ export default function Navbar(props: any) {
           </span>
         </div>
         {props.isOnline && (
+          <button
+            onClick={() => props.turnOff}
+            className="inline-flex items-center px-2 py-1 mr-2 font-medium rounded dark:bg-green-800 dark:text-slate-300"
+          >
+            Turn off
+          </button>
+        )}
+        {props.isOnline && (
           <span
             id="badge-dismiss-default"
             className="inline-flex items-center px-2 py-1 mr-2 font-medium rounded dark:bg-green-800 dark:text-slate-300"

@@ -20,6 +20,9 @@ app.use(express.static(STATIC));
 
 const server = http.createServer(app);
 
-server.listen(3001, () => {
-  console.log("Server is running on port 3001");
+const serverAddress = config["vptz-ip"];
+const port = 3001;
+
+server.listen(port, () => {
+  console.log(`Server is running at http://${serverAddress}:${port}`);
 });
